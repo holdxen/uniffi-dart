@@ -202,7 +202,6 @@ impl<'a> DartWrapper<'a> {
             // depends on the interface, so the directive is simpler than tracking
             // usage per import.
             $("// ignore_for_file: unused_import")$['\n']
-            library $package_name;
 
             $(type_helper_code) // Imports, Types and Type Helper
 
@@ -324,7 +323,6 @@ impl BindingGenerator for DartBindingGenerator {
             let asset_id = full_asset_id(config);
             let runtime = quote! {
                 $("// ignore_for_file: unused_import")$['\n']
-                $(format!("library {};", types::RUNTIME_MODULE))
 
                 $(types::runtime_scaffolding(ci))
 
