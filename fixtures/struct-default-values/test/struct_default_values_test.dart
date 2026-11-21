@@ -103,4 +103,37 @@ void main() {
       expect(contact.nickname, equals("CC"));
     });
   });
+
+  group('record toString()', () {
+    test('shows every field name alongside its value', () {
+      final bookmark = Bookmark(
+        position: 7,
+        url: 'https://example.com',
+        guid: 'c0ffee',
+        lastModified: 42,
+        title: 'Title',
+      );
+      expect(
+        bookmark.toString(),
+        'Bookmark(guid: c0ffee, position: 7, lastModified: 42, '
+        'url: https://example.com, title: Title)',
+      );
+    });
+
+    test('renders null optional fields as null', () {
+      final contact = Contact(name: 'Alice', age: 30);
+      expect(
+        contact.toString(),
+        'Contact(name: Alice, email: null, age: 30, nickname: null)',
+      );
+    });
+
+    test('does not interpret dollar signs in default field values', () {
+      final value = UdlStringDefaults();
+      expect(
+        value.toString(),
+        r'UdlStringDefaults(identifier: $amount, braced: ${amount})',
+      );
+    });
+  });
 }

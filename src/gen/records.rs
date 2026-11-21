@@ -77,6 +77,27 @@ pub fn generate_record(obj: &Record, type_helper: &dyn TypeHelperRenderer) -> da
         quote!($(cls_name)({$(for param in constructor_params => $param, )});)
     };
 
+    // Generate a toString() that shows each field name alongside its value,
+    // e.g. `MyRecord(a: foo, b: 42)`, mirroring Dart's own default style.
+    // Interpolations use `${name}` so a field name is never fused with a
+    // following identifier character.
+    let field_interpolations = obj
+        .fields()
+        .iter()
+        .map(|field| {
+            let name = DartCodeOracle::var_name(field.name());
+            format!("{}: ${{{}}}", name, name)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let to_string_expr = format!("\"{cls_name}({field_interpolations})\"");
+    let to_string_method = quote! {
+        @override
+        String toString() {
+            return $(&to_string_expr);
+        }
+    };
+
     for f in obj.fields() {
         type_helper.include_once_check(&f.as_codetype().canonical_name(), &f.as_type());
     }
@@ -85,6 +106,8 @@ pub fn generate_record(obj: &Record, type_helper: &dyn TypeHelperRenderer) -> da
             $(for f in obj.fields() => final $(generate_type(&f.as_type())) $(DartCodeOracle::var_name(f.name()));)
 
             $constructor
+
+            $to_string_method
         }
 
         class $ffi_conv_name {
