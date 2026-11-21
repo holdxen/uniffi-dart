@@ -2,12 +2,13 @@
 
 All notable changes to uniffi-dart will be documented in this file.
 
-## v0.3.0+v0.32.0
+## v0.3.0+v0.32.2
 
 ### Breaking changes
 
-- **BREAKING**: Upgrade uniffi-rs from v0.31.2 to v0.32.0. Downstream crates
-  targeting 0.31.x must move to 0.32.x as well.
+- **BREAKING**: Upgrade uniffi-rs from v0.31.2 to v0.32.2. Downstream crates
+  targeting 0.31.x must move to 0.32.x as well. The v0.32.1 and v0.32.2 patch
+  releases contain Kotlin-only fixes and introduce no further breaking changes.
 
 ### Changes
 
