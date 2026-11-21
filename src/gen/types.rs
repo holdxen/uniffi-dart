@@ -224,6 +224,8 @@ pub fn generate_type(ty: &Type) -> dart::Tokens {
         Type::Boolean => quote!(bool),
         Type::Optional { inner_type } => quote!($(generate_type(inner_type))?),
         Type::Sequence { inner_type } => quote!(List<$(generate_type(inner_type))>),
+        Type::Box { inner_type } => generate_type(inner_type),
+        Type::Set { inner_type } => quote!(Set<$(generate_type(inner_type))>),
         Type::Map { key_type, value_type } => {
             quote!(Map<$(generate_type(key_type)), $(generate_type(value_type))>)
         }
@@ -584,7 +586,7 @@ pub fn runtime_scaffolding(ci: &ComponentInterface) -> dart::Tokens {
                             errorHandler ?? NullRustCallStatusErrorHandler(),
                             status,
                         );
-                        return uniffiLiftOwnedRustBuffer(result, liftFunc);
+                        return await uniffiLiftOwnedRustBuffer(result, liftFunc);
                     } finally {
                         calloc.free(status);
                     }
@@ -678,5 +680,21 @@ mod tests {
 
         let names: Vec<_> = renderer.get_include_names().keys().cloned().collect();
         assert_eq!(names, ["a", "m", "z"]);
+    }
+
+    #[test]
+    fn generate_type_handles_uniffi_032_set_and_box() {
+        // 0.32 introduced `Type::Set` (HashSet) and made `Box<T>` a first-class
+        // metadata type. Bindings render a Set as Dart `Set<T>` and treat Box<T>
+        // as its inner type.
+        let set = Type::Set { inner_type: Box::new(Type::UInt32) };
+        assert_eq!(generate_type(&set).to_string().unwrap(), "Set<int>");
+
+        let boxed = Type::Box { inner_type: Box::new(Type::String) };
+        assert_eq!(generate_type(&boxed).to_string().unwrap(), "String");
+
+        let nested =
+            Type::Set { inner_type: Box::new(Type::Box { inner_type: Box::new(Type::Int64) }) };
+        assert_eq!(generate_type(&nested).to_string().unwrap(), "Set<int>");
     }
 }

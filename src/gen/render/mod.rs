@@ -51,6 +51,10 @@ pub trait Renderable {
             Type::Map { key_type, value_type } => {
                 quote!(Map<$(&self.render_type(key_type, type_helper)), $(&self.render_type(value_type, type_helper))>)
             }
+            Type::Box { inner_type } => self.render_type(inner_type, type_helper),
+            Type::Set { inner_type } => {
+                quote!(Set<$(&self.render_type(inner_type, type_helper))>)
+            }
             Type::Enum { name, .. } => quote!($(DartCodeOracle::class_name(name))),
             Type::Record { name, .. } => quote!($(DartCodeOracle::class_name(name))),
             Type::Custom { name, .. } => quote!($(DartCodeOracle::class_name(name))),
@@ -98,6 +102,10 @@ impl<T: AsType> AsRenderable for T {
             }
             Type::Map { key_type, value_type } => {
                 Box::new(compounds::MapCodeType::new(self.as_type(), *key_type, *value_type))
+            }
+            Type::Box { inner_type } => inner_type.as_renderable(),
+            Type::Set { inner_type } => {
+                Box::new(compounds::SetCodeType::new(self.as_type(), *inner_type))
             }
             Type::Enum { name, .. } => Box::new(enums::EnumCodeType::new(name)),
             Type::Record { name, .. } => Box::new(records::RecordCodeType::new(name)),

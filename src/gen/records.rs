@@ -1,6 +1,6 @@
 use genco::prelude::*;
 use uniffi_bindgen::interface::{AsType, Record, Type};
-use uniffi_bindgen::pipeline::general::nodes::Literal as PipelineLiteral;
+use uniffi_bindgen::pipeline::general::Literal as PipelineLiteral;
 
 use super::defaults::render_default_value;
 use super::oracle::{AsCodeType, DartCodeOracle};

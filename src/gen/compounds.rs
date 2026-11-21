@@ -229,14 +229,96 @@ macro_rules! impl_renderable_for_compound {
                 }
             }
         }
+   };
+
+   (SetCodeType, $canonical_name_pattern: literal) => {
+        paste! {
+            impl Renderable for SetCodeType {
+                fn render_type_helper(&self, type_helper: &dyn TypeHelperRenderer) -> dart::Tokens {
+                    let converter_name = self.ffi_converter_name();
+                    if type_helper.include_once_check(&converter_name, &self.self_type) {
+                        return quote!();
+                    }
+                    let inner_codetype = self.inner().as_codetype();
+
+                    let original_canonical = inner_codetype.canonical_name();
+                    let canonical_with_exception =
+                        DartCodeOracle::exception_safe_name(&original_canonical);
+                    type_helper.include_once_check(&original_canonical, &self.inner());
+                    if canonical_with_exception != original_canonical {
+                        type_helper.include_once_check(&canonical_with_exception, &self.inner());
+                    }
+
+                    let raw_type_label = inner_codetype.type_label();
+                    let inner_type_label =
+                        DartCodeOracle::exception_safe_name(&raw_type_label);
+
+                    let cl_name_buf =
+                        format!($canonical_name_pattern, canonical_with_exception.as_str());
+                    let cl_name = &cl_name_buf;
+                    let type_label_buf = format!("Set<{}>", inner_type_label.as_str());
+                    let type_label = &type_label_buf;
+
+                    let raw_converter_name = inner_codetype.ffi_converter_name();
+                    let inner_cl_converter_name_buf =
+                        DartCodeOracle::exception_safe_name(&raw_converter_name);
+                    let inner_cl_converter_name = &inner_cl_converter_name_buf;
+
+                    quote! {
+                        class $cl_name {
+                            static $type_label lift(RustBuffer buf) {
+                                return $cl_name.read(buf.asUint8List()).value;
+                            }
+
+                            static LiftRetVal<$type_label> read(Uint8List buf) {
+                                $type_label res = {};
+                                final length = buf.buffer.asByteData(buf.offsetInBytes).getInt32(0);
+                                int offset = buf.offsetInBytes + 4;
+                                for (var i = 0; i < length; i++) {
+                                    final ret = $inner_cl_converter_name.read(Uint8List.view(buf.buffer, offset));
+                                    offset += ret.bytesRead;
+                                    res.add(ret.value);
+                                }
+                                return LiftRetVal(res, offset - buf.offsetInBytes);
+                            }
+
+                            static int write($type_label value, Uint8List buf) {
+                                buf.buffer.asByteData(buf.offsetInBytes).setInt32(0, value.length);
+                                int offset = buf.offsetInBytes + 4;
+                                for (final item in value) {
+                                    offset += $inner_cl_converter_name.write(item, Uint8List.view(buf.buffer, offset));
+                                }
+                                return offset - buf.offsetInBytes;
+                            }
+
+                            static int allocationSize($type_label value) {
+                                return value
+                                    .map((item) => $inner_cl_converter_name.allocationSize(item))
+                                    .fold(0, (a, b) => a + b) + 4;
+                            }
+
+                            static RustBuffer lower($type_label value) {
+                                final buf = Uint8List(allocationSize(value));
+                                write(value, buf);
+                                return toRustBuffer(buf);
+                            }
+                        }
+                    }
+                }
+            }
+        }
    }
 }
 
 impl_code_type_for_compound!(OptionalCodeType, "{}?", "Optional{}");
 impl_code_type_for_compound!(SequenceCodeType, "List<{}>", "Sequence{}");
+// 0.32 added HashSet support; the Dart representation is a Set and, like a
+// sequence, it crosses the FFI as an i32 length followed by lowered elements.
+impl_code_type_for_compound!(SetCodeType, "Set<{}>", "Set{}");
 
 impl_renderable_for_compound!(OptionalCodeType, "{}?", "FfiConverterOptional{}");
 impl_renderable_for_compound!(SequenceCodeType, "FfiConverterSequence{}");
+impl_renderable_for_compound!(SetCodeType, "FfiConverterSet{}");
 
 // Map<K, V>
 #[derive(Debug)]

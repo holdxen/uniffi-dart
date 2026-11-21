@@ -2,8 +2,8 @@ use std::fmt::Debug;
 
 use genco::prelude::*;
 use heck::ToLowerCamelCase;
-use uniffi_bindgen::interface::{AsType, Method, Object, ObjectImpl, UniffiTrait};
-use uniffi_bindgen::pipeline::general::nodes::Literal;
+use uniffi_bindgen::interface::{AsType, Method, Object, ObjectImpl, TraitKind, UniffiTrait};
+use uniffi_bindgen::pipeline::general::Literal;
 
 use super::defaults::render_argument_param;
 use super::stream::generate_stream;
@@ -46,10 +46,14 @@ impl CodeType for ObjectCodeType {
             // that a Rust method named `read`/`write`/`lower` cannot collide with the
             // converter's statics (Dart rejects a static and an instance member sharing
             // a name). Matches how records, enums and callback interfaces are emitted.
-            ObjectImpl::Struct | ObjectImpl::Trait => {
+            ObjectImpl::Struct | ObjectImpl::Trait(TraitKind::RustOnly) => {
                 format!("FfiConverter{}", self.canonical_name())
             }
-            ObjectImpl::CallbackTrait => format!("FfiConverterCallbackInterface{}", self.id),
+            // Traits that can be implemented by foreign code (Both / ForeignOnly)
+            // are the 0.32 successors of the old `CallbackTrait` variant.
+            ObjectImpl::Trait(TraitKind::Both | TraitKind::ForeignOnly) => {
+                format!("FfiConverterCallbackInterface{}", self.id)
+            }
         }
     }
 }

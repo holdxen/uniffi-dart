@@ -15,3 +15,4 @@ internal_todo.md
 ISSUES.md
 convert_fixtures.sh
 .DS_Store
+.workbuddy/

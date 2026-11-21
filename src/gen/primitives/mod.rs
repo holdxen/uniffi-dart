@@ -15,10 +15,11 @@ use uniffi_bindgen::interface::{
     DefaultValue as InterfaceDefaultValue, Literal as InterfaceLiteral, Radix as InterfaceRadix,
     Type as InterfaceType,
 };
-use uniffi_bindgen::pipeline::general::nodes::{
+use uniffi_bindgen::pipeline::general::{
     Literal as PipelineLiteral, Radix as PipelineRadix, Type as PipelineType, TypeNode,
 };
 
+use crate::gen::oracle::AsCodeType;
 use crate::gen::render::{Renderable, TypeHelperRenderer};
 use crate::gen::CodeType;
 
@@ -118,6 +119,15 @@ where
             .or_else(|| enum_variant_renderer(field_type, variant)),
         InterfaceLiteral::EmptySequence => Some("const []".to_string()),
         InterfaceLiteral::EmptyMap => Some("const {}".to_string()),
+        // HashSet defaults (0.32+). A bare `{}` infers as Map in Dart, so emit a
+        // const, explicitly-typed empty set using the field's inner type.
+        InterfaceLiteral::EmptySet => {
+            let inner = match field_type {
+                InterfaceType::Set { inner_type } => inner_type.as_codetype().type_label(),
+                _ => "dynamic".to_string(),
+            };
+            Some(format!("const <{inner}>{{}}"))
+        }
         InterfaceLiteral::None => Some("null".to_string()),
         InterfaceLiteral::Some { inner } => {
             render_interface_default_value(inner, field_type, enum_variant_renderer)

@@ -1,7 +1,9 @@
 use genco::lang::dart;
 use genco::quote;
 use heck::{ToLowerCamelCase, ToUpperCamelCase};
-use uniffi_bindgen::interface::{Argument, AsType, Callable, FfiType, Object, ObjectImpl, Type};
+use uniffi_bindgen::interface::{
+    Argument, AsType, Callable, FfiType, Object, ObjectImpl, TraitKind, Type,
+};
 use uniffi_bindgen::ComponentInterface;
 
 // use super::render::{AsRenderable, Renderable};
@@ -542,7 +544,10 @@ impl DartCodeOracle {
     pub fn lower_arg_with_callback_handling(arg: &Argument) -> dart::Tokens {
         let base_lower = Self::type_lower_fn(&arg.as_type(), quote!($(Self::var_name(arg.name()))));
         match arg.as_type() {
-            Type::Object { imp: ObjectImpl::CallbackTrait, .. } => base_lower,
+            Type::Object {
+                imp: ObjectImpl::Trait(TraitKind::Both | TraitKind::ForeignOnly),
+                ..
+            } => base_lower,
             Type::CallbackInterface { .. } => quote!($base_lower.address),
             _ => base_lower,
         }
@@ -671,6 +676,12 @@ impl<T: AsType> AsCodeType for T {
             }
             Type::Map { key_type, value_type, .. } => {
                 Box::new(compounds::MapCodeType::new(self.as_type(), *key_type, *value_type))
+            }
+            // `Box<T>` is a scaffolding-only wrapper; bindings treat it as T (0.32+).
+            Type::Box { inner_type } => inner_type.as_codetype(),
+            // `Set<T>` (HashSet) was added in 0.32; wire format matches sequences.
+            Type::Set { inner_type } => {
+                Box::new(compounds::SetCodeType::new(self.as_type(), *inner_type))
             }
             Type::Enum { name, .. } => Box::new(enums::EnumCodeType::new(name)),
             Type::Record { name, .. } => Box::new(records::RecordCodeType::new(name)),
